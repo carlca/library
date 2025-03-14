@@ -6,10 +6,17 @@ import com.bitwig.extension.callback.DoubleValueChangedCallback
 // import com.carlca.logger.Log
 
 object ExtensionSettings:
+  enum SettingsCapability derives CanEqual:
+    case `Solo Behaviour`, `Track Mapping Behaviour`, `Third Row Behaviour`, `Fader dB Range`, `Master dB Range`
   enum PanSendMode derives CanEqual:
     case `FX Send`, `Pan`
   enum TrackMode derives CanEqual:
     case `One to One`, `No Groups`, `Groups Only`, `Tagged "<>" Only`
+  // Set of settings that can be changed in the preferences - initiallised with no options
+  var settingsCapabilities: Set[SettingsCapability] = Set.empty
+  // add Solo Behaviour to the set of settings that can be changed in the preferences
+  // settingsCapabilities += SettingsCapability.`Solo Behaviour`
+
   var exclusiveSolo: Boolean = false
   var panSendMode: PanSendMode = PanSendMode.`FX Send`
   var trackMode:  TrackMode = TrackMode.`One to One`
@@ -32,16 +39,19 @@ object ExtensionSettings:
   def initPreferences(host: ControllerHost): Unit =
     val prefs = host.getPreferences
 
-    val soloSetting = prefs.getBooleanSetting("Exclusive Solo", "Solo Behaviour", false)
-    soloSetting.addValueObserver((value) => ExtensionSettings.exclusiveSolo = value)
+    if settingsCapabilities.contains(SettingsCapability.`Solo Behaviour`) then
+      val soloSetting = prefs.getBooleanSetting("Exclusive Solo", "Solo Behaviour", false)
+      soloSetting.addValueObserver((value) => ExtensionSettings.exclusiveSolo = value)
 
-    val values = PanSendMode.values.map(_.toString).toArray
-    val panSetting = prefs.getEnumSetting("Send/Pan Mode", "Third Row Behaviour", values, PanSendMode.`FX Send`.toString())
-    panSetting.addValueObserver((value) => ExtensionSettings.panSendMode = PanSendMode.valueOf(value))
+    if settingsCapabilities.contains(SettingsCapability.`Third Row Behaviour`) then
+      val values = PanSendMode.values.map(_.toString).toArray
+      val panSetting = prefs.getEnumSetting("Send/Pan Mode", "Third Row Behaviour", values, PanSendMode.`FX Send`.toString())
+      panSetting.addValueObserver((value) => ExtensionSettings.panSendMode = PanSendMode.valueOf(value))
 
-    val trackModes = TrackMode.values.map(_.toString).toArray
-    val trackSetting = prefs.getEnumSetting("Track Mode", "Track Mapping Behaviour", trackModes, TrackMode.`One to One`.toString())
-    trackSetting.addValueObserver((value) => ExtensionSettings.trackMode = TrackMode.valueOf(value))
+    if settingsCapabilities.contains(SettingsCapability.`Track Mapping Behaviour`) then
+      val trackModes = TrackMode.values.map(_.toString).toArray
+      val trackSetting = prefs.getEnumSetting("Track Mode", "Track Mapping Behaviour", trackModes, TrackMode.`One to One`.toString())
+      trackSetting.addValueObserver((value) => ExtensionSettings.trackMode = TrackMode.valueOf(value))
 
     def createTrackDbSetting(minMax: String, trackNumber: Int): SettableRangedValue =
       val settingName = if trackNumber == 0 then "Master dB" else s"Fader $trackNumber dB"
@@ -68,30 +78,38 @@ object ExtensionSettings:
                 trackMaxDb(trackNumber) = newValue
       )
 
-    // Create settings and observers for each track
-    for trackNumber <- 1 to NUM_TRACKS do
-      val minSetting = createTrackDbSetting(MIN, trackNumber)
-      trackMinDb(trackNumber) = minSetting.getRaw // Initial values
-      addTrackDbObserver(minSetting, MIN, trackNumber)
+    if settingsCapabilities.contains(SettingsCapability.`Fader dB Range`) then
+      // Create settings and observers for each track
+      for trackNumber <- 1 to NUM_TRACKS do
+        val minSetting = createTrackDbSetting(MIN, trackNumber)
+        trackMinDb(trackNumber) = minSetting.getRaw // Initial values
+        addTrackDbObserver(minSetting, MIN, trackNumber)
 
-      val maxSetting = createTrackDbSetting(MAX, trackNumber)
-      trackMaxDb(trackNumber) = maxSetting.getRaw // Initial values
-      addTrackDbObserver(maxSetting, MAX, trackNumber)
+        val maxSetting = createTrackDbSetting(MAX, trackNumber)
+        trackMaxDb(trackNumber) = maxSetting.getRaw // Initial values
+        addTrackDbObserver(maxSetting, MAX, trackNumber)
 
-    // Master Track
-    val masterMinSetting = createTrackDbSetting(MIN, MASTER)
-    trackMinDb(MASTER) = masterMinSetting.getRaw
-    addTrackDbObserver(masterMinSetting, MIN, MASTER)
+    if settingsCapabilities.contains(SettingsCapability.`Master dB Range`) then
+      // Master Track
+      val masterMinSetting = createTrackDbSetting(MIN, MASTER)
+      trackMinDb(MASTER) = masterMinSetting.getRaw
+      addTrackDbObserver(masterMinSetting, MIN, MASTER)
 
-    val masterMaxSetting = createTrackDbSetting(MAX, MASTER)
-    trackMaxDb(MASTER) = masterMaxSetting.getRaw
-    addTrackDbObserver(masterMaxSetting, MAX, MASTER)
+      val masterMaxSetting = createTrackDbSetting(MAX, MASTER)
+      trackMaxDb(MASTER) = masterMaxSetting.getRaw
+      addTrackDbObserver(masterMaxSetting, MAX, MASTER)
 
   def getVolumeRange(track: Int): (Double, Double) =
-    (dbToVolume(trackMinDb(track + 1)), dbToVolume(trackMaxDb(track + 1)))
+    if settingsCapabilities.contains(SettingsCapability.`Fader dB Range`) then
+      (dbToVolume(trackMinDb(track + 1)), dbToVolume(trackMaxDb(track + 1)))
+    else
+      (dbToVolume(MIN_DB), dbToVolume(MAX_DB))
 
   def getMasterVolumeRange: (Double, Double) =
-    (dbToVolume(trackMinDb(MASTER)), dbToVolume(trackMaxDb(MASTER)))
+    if settingsCapabilities.contains(SettingsCapability.`Master dB Range`) then
+      (dbToVolume(trackMinDb(MASTER)), dbToVolume(trackMaxDb(MASTER)))
+    else
+      (dbToVolume(MIN_DB), dbToVolume(MAX_DB))
 
   private val dbToVolumeLookupTable: Array[Double] =
     val steps = ((MAX_DB - MIN_DB) * 10).toInt
@@ -109,3 +127,9 @@ object ExtensionSettings:
     else
       val index = math.round(((db - MIN_DB) / DB_INCREMENT)).toInt
       dbToVolumeLookupTable(index)
+
+  // SoloBehaviour
+  // TrackMappingBehaviour
+  // ThirdRowBehaviour
+  // MasterDbRnage
+  // TrackDbRange
