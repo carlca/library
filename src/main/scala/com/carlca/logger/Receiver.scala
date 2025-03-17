@@ -21,11 +21,12 @@ object Receiver:
       new Thread(() =>
         try
           Config.setLogPort(0)
+          outputMessage("Receiver port reset to 0")
           serverSocket.close
         catch
           case e: IOException =>
-            e.printStackTrace)
-    )
+            System.exit(1)
+    ))
     while !Thread.interrupted do
       val socket      = serverSocket.accept
       val inputStream = socket.getInputStream
@@ -36,8 +37,8 @@ object Receiver:
     serverSocket.close
   catch
     case e: IOException =>
-      e.printStackTrace
-  end main
+      Config.setLogPort(0)
+      System.exit(1)
 
   private def outputMessage(msg: String): Unit =
     if ConsoleUtils.hasFormattingPlaceholders(msg) then printf(msg)
@@ -45,5 +46,3 @@ object Receiver:
   end outputMessage
 
   private def findFreePort: Try[Int] = Using(new ServerSocket(0))(_.getLocalPort)
-
-end Receiver
