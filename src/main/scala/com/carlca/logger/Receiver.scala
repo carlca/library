@@ -25,7 +25,7 @@ object Receiver:
           serverSocket.close
         catch
           case e: IOException =>
-            System.exit(1)
+            System.exit(0)
     ))
     while !Thread.interrupted do
       val socket      = serverSocket.accept
@@ -38,11 +38,10 @@ object Receiver:
   catch
     case e: IOException =>
       Config.setLogPort(0)
-      System.exit(1)
+      System.exit(0)
 
   private def outputMessage(msg: String): Unit =
     if ConsoleUtils.hasFormattingPlaceholders(msg) then printf(msg)
     else System.out.println(msg)
-  end outputMessage
 
   private def findFreePort: Try[Int] = Using(new ServerSocket(0))(_.getLocalPort)

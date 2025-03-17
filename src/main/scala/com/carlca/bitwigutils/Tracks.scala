@@ -82,6 +82,14 @@ object Tracks:
   def getIsDisabled(t: Int): Boolean =
     mWrapper.getItemAt(t).fold(false)(track => track.exists().get())
 
+  /** getTrackName */
+  def getTrackName(t: Int): String =
+    mWrapper.getItemAt(t).fold("")(track => track.name().get())
+
+  /** getColorValue */
+  def getColorValue(t: Int): ColorValue =
+    mWrapper.getItemAt(t).fold(null)(track => track.color())
+
   /** Scale volume to a range */
   private def scaleVolume(v: Double, minVol: Double, maxVol: Double): Double =
     minVol + (maxVol - minVol) * (v / 127.0)
