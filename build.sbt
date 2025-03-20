@@ -7,8 +7,6 @@ lazy val root = (project in file("."))
     name                := "library", // CHANGED NAME
     resolvers           += "Bitwig Maven Repository" at "https://maven.bitwig.com",
 
-    assembly / assemblyJarName := "library.jar",
-
     libraryDependencies += "com.bitwig"    % "extension-api" % "20" % "provided",
     libraryDependencies += "org.json"      % "json"          % "20231013",
     libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.12" % "test", //Added scalatest for unit test.
@@ -20,9 +18,7 @@ lazy val root = (project in file("."))
       "-Wunused:all"
     )
   )
-lazy val assemblySettings = Seq(
-  assembly / assemblyJarName := "uber.jar",
-)
+
 scalacOptions ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, _)) =>
